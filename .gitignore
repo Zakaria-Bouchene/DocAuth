@@ -24,3 +24,28 @@ backend/prisma/*.db-journal
 # IDE
 .vscode/
 .idea/
+
+# Frontend build output
+dist/
+build/
+.cache/
+.parcel-cache/
+
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.npm/
+.yarn/
+
+# Test coverage
+coverage/
+
+# Large binary / trained data
+*.traineddata
+
+# Misc
+*.map
+*.tsbuildinfo
+.vercel/
+.next/
