@@ -1,5 +1,5 @@
 # DocAuth - Trusted Practitioner Onboarding MVP
-
+khaled
 DocAuth is an MVP web application for onboarding and verifying digital healthcare practitioners. It implements a complete trust verification pipeline including document upload, OCR extraction (mocked), license verification (mocked), anomaly detection, trust scoring, and an admin decision engine.
 
 ## Tech Stack
