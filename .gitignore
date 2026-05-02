@@ -25,7 +25,13 @@ backend/prisma/*.db-journal
 .vscode/
 .idea/
 
-# Frontend build output
+# Frontend (Next.js)
+frontend/.next/
+frontend/node_modules/
+frontend/package-lock.json
+frontend/out/
+
+# Frontend build output (general)
 dist/
 build/
 .cache/
