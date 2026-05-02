@@ -3,33 +3,36 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { UploadCloud, CheckCircle, AlertTriangle, XCircle, LogOut, FileText } from "lucide-react";
-import Link from "next/link";
+import { 
+  UploadCloud, CheckCircle, AlertTriangle, XCircle, 
+  LogOut, FileText, User as UserIcon, Shield, 
+  GraduationCap, ClipboardCheck, Building2, MapPin, Search
+} from "lucide-react";
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [uploadType, setUploadType] = useState("ID_CARD");
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return router.push("/login");
+  const fetchUser = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return router.push("/login");
 
-      try {
-        const res = await axios.get("http://localhost:3001/api/users/me", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setUser(res.data);
-      } catch (err) {
-        localStorage.removeItem("token");
-        router.push("/login");
-      }
-    };
+    try {
+      const res = await axios.get("http://localhost:3001/api/users/me", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUser(res.data);
+    } catch (err) {
+      localStorage.removeItem("token");
+      router.push("/login");
+    }
+  };
+
+  useEffect(() => {
     fetchUser();
   }, [router]);
 
@@ -41,9 +44,7 @@ export default function Dashboard() {
     const token = localStorage.getItem("token");
     const formData = new FormData();
     formData.append("document", file);
-    formData.append("type", "MEDICAL_LICENSE");
-    formData.append("firstName", firstName);
-    formData.append("lastName", lastName);
+    formData.append("type", uploadType);
 
     try {
       await axios.post("http://localhost:3001/api/verify", formData, {
@@ -52,34 +53,12 @@ export default function Dashboard() {
           "Content-Type": "multipart/form-data"
         }
       });
-      // Refresh user data
-      const res = await axios.get("http://localhost:3001/api/users/me", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setUser(res.data);
+      await fetchUser();
       setFile(null);
     } catch (err) {
       console.error("Upload failed", err);
     } finally {
       setUploading(false);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setFile(e.dataTransfer.files[0]);
     }
   };
 
@@ -89,210 +68,265 @@ export default function Dashboard() {
     router.push("/");
   };
 
-  if (!user) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  // Determine required documents
+  const requiredDocs = user ? [
+    { type: 'ID_CARD', label: 'National ID', icon: UserIcon },
+    { type: 'SELFIE', label: 'Selfie with ID', icon: UserIcon },
+    { type: 'DEGREE', label: 'Medical Diploma', icon: GraduationCap },
+    { type: 'REGISTRATION', label: 'Council Registration', icon: ClipboardCheck },
+    { type: 'DSP', label: 'DSP License', icon: Building2 },
+  ] : [];
 
-  const result = user.verificationResults;
+  if (user?.degreeType === 'Specialist') {
+    requiredDocs.push({ type: 'RESIDENCY_CERT', label: 'Residency Certificate', icon: GraduationCap });
+  }
+
+  if (user && user.country !== 'Algeria') {
+    requiredDocs.push({ type: 'EQUIVALENCE_CERT', label: 'Equivalence Certificate', icon: ClipboardCheck });
+  }
+
+  if (user?.practiceType === 'Private') {
+    requiredDocs.push({ type: 'PRACTICE_AUTHORIZATION', label: 'Practice Authorization', icon: MapPin });
+  }
+
+  const uploadedTypes = user?.documents.map((d: any) => d.type) || [];
+  const missingDocs = requiredDocs.filter(rd => !uploadedTypes.includes(rd.type));
+
+  // Default upload type to first missing
+  useEffect(() => {
+    if (missingDocs.length > 0 && !missingDocs.find(m => m.type === uploadType)) {
+        setUploadType(missingDocs[0].type);
+    }
+  }, [missingDocs, uploadType]);
+
+  if (!user) return <div className="min-h-screen flex items-center justify-center bg-slate-50 font-medium">Loading Trust Engine...</div>;
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-          <FileText className="text-blue-600" /> DocAuth
-        </h1>
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-slate-600">Dr. {user.name}</span>
-          <button onClick={handleLogout} className="text-slate-500 hover:text-slate-800 flex items-center gap-1">
-            <LogOut size={18} /> Logout
+    <main className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20">
+      {/* Premium Header */}
+      <header className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200 px-8 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-200">
+            <Shield className="text-white" size={24} />
+          </div>
+          <h1 className="text-xl font-extrabold tracking-tight text-slate-800">DocAuth <span className="text-blue-600">Trust</span></h1>
+        </div>
+        <div className="flex items-center gap-6">
+          <div className="flex flex-col items-end">
+            <span className="text-sm font-bold text-slate-800">Dr. {user.name}</span>
+            <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">{user.specialty}</span>
+          </div>
+          <button onClick={handleLogout} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 hover:text-red-500">
+            <LogOut size={20} />
           </button>
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto p-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="max-w-6xl mx-auto p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Status Column */}
-        <div className="md:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h2 className="font-semibold text-slate-800 mb-4">Verification Status</h2>
+        {/* LEFT COLUMN: Profile & Trust Score */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Trust Score Card */}
+          <div className="bg-white p-8 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-5">
+              <Shield size={120} />
+            </div>
+            <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <Shield size={20} className="text-blue-600" /> Trust Score
+            </h2>
             
-            {!result ? (
-              <div className="flex flex-col items-center p-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300">
-                <AlertTriangle className="text-slate-400 mb-2" size={32} />
-                <p className="text-slate-600 font-medium">Not Submitted</p>
-                <p className="text-xs text-slate-500 mt-1">Please upload your medical license.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className={`flex items-center gap-3 p-4 rounded-xl border ${
-                  result.status === 'APPROVED' ? 'bg-green-50 border-green-200 text-green-800' :
-                  result.status === 'PENDING' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' :
-                  'bg-red-50 border-red-200 text-red-800'
-                }`}>
-                  {result.status === 'APPROVED' && <CheckCircle size={28} className="text-green-600" />}
-                  {result.status === 'PENDING' && <AlertTriangle size={28} className="text-yellow-600" />}
-                  {result.status === 'REJECTED' && <XCircle size={28} className="text-red-600" />}
-                  
+            <div className="flex flex-col items-center justify-center py-6">
+               <div className="relative flex items-center justify-center">
+                  <svg className="w-32 h-32 transform -rotate-90">
+                    <circle className="text-slate-100" strokeWidth="8" stroke="currentColor" fill="transparent" r="58" cx="64" cy="64" />
+                    <circle 
+                      className="text-blue-600 transition-all duration-1000 ease-out" 
+                      strokeWidth="8" 
+                      strokeDasharray={364.4}
+                      strokeDashoffset={364.4 - (364.4 * user.trustScore) / 100}
+                      strokeLinecap="round" 
+                      stroke="currentColor" 
+                      fill="transparent" 
+                      r="58" cx="64" cy="64" 
+                    />
+                  </svg>
+                  <span className="absolute text-3xl font-black text-slate-800">{user.trustScore}</span>
+               </div>
+               <p className="mt-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Verification Strength</p>
+            </div>
+
+            <div className={`mt-6 p-4 rounded-2xl border text-center ${
+              user.verificationStatus === 'verified' ? 'bg-green-50 border-green-200 text-green-700' :
+              user.verificationStatus === 'pending' ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
+              user.verificationStatus === 'review_required' ? 'bg-orange-50 border-orange-200 text-orange-700' :
+              'bg-red-50 border-red-200 text-red-700'
+            }`}>
+              <p className="text-xs font-black uppercase tracking-tighter mb-1">Status: {user.verificationStatus}</p>
+              <p className="text-[10px] font-medium leading-tight opacity-80">
+                {user.verificationStatus === 'verified' ? 'Credentials verified successfully.' : 'Additional documents or review required.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Profile Quick Info */}
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+             <h3 className="font-bold text-slate-800 mb-4 text-sm uppercase tracking-wider">Profile Overview</h3>
+             <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+                    <UserIcon size={16} />
+                  </div>
                   <div>
-                    <p className="text-sm font-bold uppercase">{result.status}</p>
-                    <p className="text-xs opacity-80">Final Trust Score: {result.score}/100</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">National ID</p>
+                    <p className="text-sm font-medium text-slate-700">{user.nationalId || 'Not provided'}</p>
                   </div>
                 </div>
-
-                {user.documents[0] && user.documents[0].extractedData && (
-                  <div className="mt-4 space-y-4">
-                    {(() => {
-                      const ex = JSON.parse(user.documents[0].extractedData.jsonData);
-                      return (
-                        <>
-                          <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs text-slate-700">
-                            <h3 className="font-bold text-slate-800 mb-2">Extracted Data</h3>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div><span className="font-semibold">License:</span> {ex.license_number || 'N/A'}</div>
-                              <div><span className="font-semibold">Specialty:</span> {ex.specialty || 'N/A'}</div>
-                              <div><span className="font-semibold">Issued:</span> {ex.issue_date || 'N/A'}</div>
-                              <div><span className="font-semibold">Expires:</span> {ex.expiry_date || 'N/A'}</div>
-                            </div>
-                          </div>
-
-                          <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs text-slate-700">
-                            <h3 className="font-bold text-slate-800 mb-2">Anomaly Detection Tests</h3>
-                            <ul className="space-y-1">
-                              <li className="flex justify-between">
-                                <span>Name Mismatch:</span> 
-                                <span className={ex.anomalyTests?.nameMismatch ? "text-red-600 font-bold" : "text-green-600"}>{ex.anomalyTests?.nameMismatch ? "FAIL" : "PASS"}</span>
-                              </li>
-                              <li className="flex justify-between">
-                                <span>Missing Data:</span> 
-                                <span className={ex.anomalyTests?.missingData ? "text-red-600 font-bold" : "text-green-600"}>{ex.anomalyTests?.missingData ? "FAIL" : "PASS"}</span>
-                              </li>
-                              <li className="flex justify-between">
-                                <span>Expired Document:</span> 
-                                <span className={ex.anomalyTests?.expired ? "text-red-600 font-bold" : "text-green-600"}>{ex.anomalyTests?.expired ? "FAIL" : "PASS"}</span>
-                              </li>
-                              <li className="flex justify-between">
-                                <span>Duplicate License:</span> 
-                                <span className={ex.anomalyTests?.duplicate ? "text-red-600 font-bold" : "text-green-600"}>{ex.anomalyTests?.duplicate ? "FAIL" : "PASS"}</span>
-                              </li>
-                            </ul>
-                          </div>
-
-                          {ex.scoreBreakdown && (
-                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs text-slate-700">
-                              <h3 className="font-bold text-slate-800 mb-2">Score Breakdown</h3>
-                              <ul className="space-y-1">
-                                <li className="flex justify-between"><span>Valid License API Check:</span> <span>+{ex.scoreBreakdown.validLicense}</span></li>
-                                <li className="flex justify-between"><span>Name Match OCR:</span> <span>+{ex.scoreBreakdown.matchingNames}</span></li>
-                                <li className="flex justify-between"><span>Valid Dates:</span> <span>+{ex.scoreBreakdown.validDates}</span></li>
-                                <li className="flex justify-between"><span>No Anomalies Bonus:</span> <span>+{ex.scoreBreakdown.noAnomalies}</span></li>
-                                {ex.scoreBreakdown.deductions < 0 && (
-                                  <li className="flex justify-between text-red-600 font-medium border-t border-red-200 pt-1 mt-1">
-                                    <span>Anomaly Deductions:</span> <span>{ex.scoreBreakdown.deductions}</span>
-                                  </li>
-                                )}
-                              </ul>
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+                    <Building2 size={16} />
                   </div>
-                )}
-              </div>
-            )}
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Practice Type</p>
+                    <p className="text-sm font-medium text-slate-700">{user.practiceType} Sector</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+                    <MapPin size={16} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Wilaya</p>
+                    <p className="text-sm font-medium text-slate-700">{user.wilaya}</p>
+                  </div>
+                </div>
+             </div>
           </div>
         </div>
 
-        {/* Upload & History Column */}
-        <div className="md:col-span-2 space-y-6">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h2 className="font-semibold text-slate-800 mb-4">Upload Documents</h2>
-            <form onSubmit={handleUpload} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">First Name (on document)</label>
-                  <input
-                    type="text"
-                    required
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Last Name (on document)</label>
-                  <input
-                    type="text"
-                    required
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                  />
-                </div>
+        {/* RIGHT COLUMN: Dynamic Verification Flow */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          {/* Progress / Missing Docs */}
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+            <h2 className="text-xl font-black text-slate-800 mb-6">Verification Progress</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+               {requiredDocs.map((rd, i) => {
+                 const isDone = uploadedTypes.includes(rd.type);
+                 return (
+                   <div key={i} className={`p-4 rounded-2xl border transition-all ${isDone ? 'bg-blue-50 border-blue-100' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <rd.icon size={20} className={isDone ? 'text-blue-600' : 'text-slate-400'} />
+                        {isDone ? <CheckCircle size={16} className="text-blue-600" /> : <div className="w-4 h-4 rounded-full border-2 border-slate-200" />}
+                      </div>
+                      <p className={`text-xs font-bold ${isDone ? 'text-blue-900' : 'text-slate-500'}`}>{rd.label}</p>
+                   </div>
+                 );
+               })}
+            </div>
+          </div>
+
+          {/* Upload Section */}
+          <div className="bg-white p-8 rounded-3xl shadow-xl shadow-blue-50 border border-slate-100">
+            <h2 className="text-xl font-black text-slate-800 mb-2">Add Document</h2>
+            <p className="text-sm text-slate-500 mb-6">Upload credentials to increase your trust score.</p>
+            
+            <form onSubmit={handleUpload} className="space-y-6">
+              <div className="flex flex-wrap gap-2">
+                {missingDocs.map((md) => (
+                  <button 
+                    key={md.type}
+                    type="button"
+                    onClick={() => setUploadType(md.type)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${uploadType === md.type ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                  >
+                    {md.label}
+                  </button>
+                ))}
+                {missingDocs.length === 0 && (
+                  <p className="text-xs text-green-600 font-bold bg-green-50 px-4 py-2 rounded-xl border border-green-100">All required documents submitted!</p>
+                )}
               </div>
 
               <div 
-                className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors bg-white ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:bg-slate-50'}`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
+                className={`group relative border-2 border-dashed rounded-3xl p-12 text-center transition-all ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'}`}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => { e.preventDefault(); setIsDragging(false); if(e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); }}
               >
                 <input 
                   type="file" 
                   id="file-upload" 
                   className="hidden"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  accept="image/*,.pdf"
+                  accept="image/*"
                 />
                 <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center w-full h-full">
-                  <UploadCloud className={`mb-2 ${isDragging ? 'text-blue-600' : 'text-blue-500'}`} size={40} />
-                  <span className="text-sm font-medium text-blue-600">Click to browse or drag & drop</span>
-                  <span className="text-xs text-slate-500 mt-1">Images up to 10MB</span>
+                  <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <UploadCloud size={32} />
+                  </div>
+                  <span className="text-sm font-black text-slate-800">Select {requiredDocs.find(r => r.type === uploadType)?.label}</span>
+                  <span className="text-xs text-slate-400 mt-2 font-medium">Drag and drop or click to browse</span>
                 </label>
               </div>
-              
+
               {file && (
-                <div className="text-sm text-slate-700 bg-slate-100 p-3 rounded-lg flex justify-between items-center">
-                  <span>{file.name}</span>
-                  <button type="button" onClick={() => setFile(null)} className="text-slate-500 hover:text-red-500">
-                    <XCircle size={16} />
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <FileText className="text-blue-500" size={20} />
+                    <span className="text-xs font-bold text-slate-700 truncate max-w-[200px]">{file.name}</span>
+                  </div>
+                  <button type="button" onClick={() => setFile(null)} className="text-slate-400 hover:text-red-500">
+                    <XCircle size={18} />
                   </button>
                 </div>
               )}
 
               <button 
                 disabled={!file || uploading} 
-                className="w-full py-3 bg-blue-600 disabled:bg-slate-300 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex justify-center items-center gap-2"
+                className="w-full py-4 bg-slate-900 disabled:bg-slate-200 hover:bg-blue-600 text-white rounded-2xl font-black text-sm transition-all shadow-xl shadow-slate-200 hover:-translate-y-0.5 active:translate-y-0"
               >
-                {uploading ? 'Processing...' : 'Submit Document'}
+                {uploading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Analyzing Document...
+                  </div>
+                ) : 'Confirm and Upload'}
               </button>
-              
-              <p className="text-xs text-slate-500 mt-4 italic">
-                * Our AI engine will run real OCR on your document to verify that your first and last name match exactly.
-              </p>
             </form>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h2 className="font-semibold text-slate-800 mb-4">Your Documents</h2>
-            {user.documents.length === 0 ? (
-              <p className="text-sm text-slate-500">No documents uploaded yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {user.documents.map((doc: any) => (
-                  <div key={doc.id} className="flex justify-between items-center p-3 border border-slate-100 rounded-lg hover:bg-slate-50">
-                    <div className="flex items-center gap-3">
-                      <FileText className="text-slate-400" size={20} />
+          {/* Verification Logs */}
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+            <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+              <Search size={20} className="text-blue-600" /> Verification Logs
+            </h2>
+            <div className="space-y-3">
+              {user.verificationLogs.length === 0 ? (
+                <p className="text-sm text-slate-400 font-medium italic">No verification activity recorded yet.</p>
+              ) : (
+                user.verificationLogs.slice(0, 5).map((log: any) => (
+                  <div key={log.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-2 rounded-lg ${log.result === 'PASS' ? 'bg-green-100 text-green-600' : log.result === 'WARNING' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'}`}>
+                        {log.result === 'PASS' ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
+                      </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-700">{doc.type}</p>
-                        <p className="text-xs text-slate-400">{doc.fileUrl}</p>
+                        <p className="text-xs font-black text-slate-800">{log.checkType}</p>
+                        <p className="text-[10px] text-slate-400 font-bold">{new Date(log.timestamp).toLocaleString()}</p>
                       </div>
                     </div>
+                    {log.details && (
+                      <span className="text-[10px] font-bold text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-100">
+                        {JSON.parse(log.details).detail || log.result}
+                      </span>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
           </div>
-        </div>
 
+        </div>
       </div>
     </main>
   );

@@ -16,7 +16,12 @@ export default function Register() {
   const [licenseNumber, setLicenseNumber] = useState("");
   const [institution, setInstitution] = useState("");
   const [graduationYear, setGraduationYear] = useState("");
-  const [country, setCountry] = useState("");
+  const [country, setCountry] = useState("Algeria");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [nationalId, setNationalId] = useState("");
+  const [degreeType, setDegreeType] = useState("General");
+  const [practiceType, setPracticeType] = useState("Public");
+  const [wilaya, setWilaya] = useState("");
   
   const [error, setError] = useState("");
   const router = useRouter();
@@ -27,7 +32,8 @@ export default function Register() {
     try {
       const res = await axios.post("http://localhost:3001/api/auth/register", { 
         name, email, password, role, 
-        phone, specialty, licenseNumber, institution, graduationYear, country 
+        phone, specialty, licenseNumber, institution, graduationYear, country,
+        dateOfBirth, nationalId, degreeType, practiceType, wilaya
       });
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
@@ -89,6 +95,27 @@ export default function Register() {
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Date of Birth</label>
+                <input
+                  type="date"
+                  required
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">National ID Number</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="123456789"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  value={nationalId}
+                  onChange={(e) => setNationalId(e.target.value)}
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
                 <select
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all"
@@ -141,6 +168,47 @@ export default function Register() {
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                   value={institution}
                   onChange={(e) => setInstitution(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Degree Type</label>
+                <select
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all"
+                  value={degreeType}
+                  onChange={(e) => setDegreeType(e.target.value)}
+                >
+                  <option value="General">Generalist</option>
+                  <option value="Specialist">Specialist</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Practice Type</label>
+                <select
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all"
+                  value={practiceType}
+                  onChange={(e) => setPracticeType(e.target.value)}
+                >
+                  <option value="Public">Public Sector</option>
+                  <option value="Private">Private Practice</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Wilaya (Province)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Algiers"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  value={wilaya}
+                  onChange={(e) => setWilaya(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Country of Graduation</label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
                 />
               </div>
             </div>

@@ -14,23 +14,39 @@ model User {
   password            String
   role                String                // 'DOCTOR' | 'ADMIN'
   phone               String?
-  specialty           String?               // Self-declared specialty (e.g., 'Cardiology')
-  licenseNumber       String?               // Self-declared license number for cross-referencing
-  institution         String?               // Hospital or clinic name
-  graduationYear      String?               // Year of graduation
-  country             String?               // Country of practice
+  dateOfBirth         String?
+  nationalId          String?
+  profileStatus       String                @default("incomplete") // incomplete | pending | verified | rejected
+  trustScore          Int                   @default(0)
+  verificationStatus  String                @default("pending")    // verified | pending | review_required | rejected
+  
+  // Professional Details
+  specialty           String?               
+  licenseNumber       String?               
+  institution         String?               
+  graduationYear      String?               
+  country             String?               
+  degreeType          String?               // General | Specialist
+  practiceType        String?               // Public | Private
+  wilaya              String?
+
   documents           Document[]
   verificationResults VerificationResult?
   auditLogs           AuditLog[]
+  verificationLogs    VerificationLog[]
 }
 
 model Document {
-  id             Int             @id @default(autoincrement())
-  userId         Int
-  type           String          // 'ID_CARD' | 'MEDICAL_LICENSE' | 'DIPLOMA'
-  fileUrl        String
-  user           User            @relation(fields: [userId], references: [id])
-  extractedData  ExtractedData?
+  id                 Int             @id @default(autoincrement())
+  userId             Int
+  type               String          // ID_CARD, DEGREE, REGISTRATION, DSP, SELFIE, etc.
+  fileUrl            String
+  verificationStatus String          @default("pending")
+  anomalyFlags       String?         // JSON string
+  version            Int             @default(1)
+  createdAt          DateTime        @default(now())
+  user               User            @relation(fields: [userId], references: [id])
+  extractedData      ExtractedData?
 }
 
 model ExtractedData {
@@ -59,4 +75,14 @@ model AuditLog {
   details   String?  // JSON string for additional details
   txHash    String?  // Optional blockchain transaction hash
   user      User?    @relation(fields: [userId], references: [id])
+}
+
+model VerificationLog {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  checkType      String   // OCR, FACE_MATCH, CROSS_VAL, etc.
+  result         String   // PASS | FAIL | WARNING
+  details        String?  // JSON string
+  timestamp      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id])
 }

@@ -62,32 +62,86 @@ async function createAuditLog(userId, action, details = null, txHash = null) {
   }
 }
 
+async function createVerificationLog(userId, checkType, result, details = null) {
+  try {
+    await prisma.verificationLog.create({
+      data: {
+        userId,
+        checkType,
+        result,
+        details: details ? JSON.stringify(details) : null
+      }
+    });
+  } catch (err) {
+    console.error("Verification Log Error:", err);
+  }
+}
+
+// --- TRUST SCORE ENGINE ---
+function calculateTrustScore(checks) {
+  let score = 0;
+  if (checks.identityVerified) score += 25;
+  if (checks.degreeValid) score += 20;
+  if (checks.registrationValid) score += 30;
+  if (checks.dspValid) score += 15;
+  if (checks.specialistValidated) score += 10;
+  
+  // Deduct for anomalies
+  if (checks.anomalies && checks.anomalies.length > 0) {
+    score -= 30;
+  }
+  
+  return Math.max(0, Math.min(100, score));
+}
+
+// --- DECISION ENGINE ---
+function determineStatus(score) {
+  if (score >= 90) return 'verified';
+  if (score >= 70) return 'pending';
+  if (score >= 50) return 'review_required';
+  return 'rejected';
+}
+
 // --- ROUTES ---
 
 // 1. Auth: Register
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { name, email, password, role, phone, specialty, licenseNumber, institution, graduationYear, country } = req.body;
+    const { 
+      name, email, password, role, phone, 
+      dateOfBirth, nationalId, specialty, licenseNumber, 
+      institution, graduationYear, country,
+      degreeType, practiceType, wilaya
+    } = req.body;
+    
     const hashedPassword = await bcrypt.hash(password, 10);
     const userRole = role === 'ADMIN' ? 'ADMIN' : 'DOCTOR';
-    
+
     const user = await prisma.user.create({
-      data: { 
-        name, 
-        email, 
-        password: hashedPassword, 
+      data: {
+        name,
+        email,
+        password: hashedPassword,
         role: userRole,
         phone,
+        dateOfBirth,
+        nationalId,
         specialty,
         licenseNumber,
         institution,
         graduationYear,
-        country
+        country,
+        degreeType,
+        practiceType,
+        wilaya,
+        profileStatus: 'incomplete',
+        trustScore: 0,
+        verificationStatus: 'pending'
       }
     });
-    
+
     await createAuditLog(user.id, 'REGISTER', { email: user.email, role: user.role });
-    
+
     const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET);
     res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
   } catch (err) {
@@ -103,23 +157,56 @@ app.post('/api/auth/login', async (req, res) => {
   if (!user || !(await bcrypt.compare(password, user.password))) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
-  
+
   await createAuditLog(user.id, 'LOGIN', { ip: req.ip });
-  
+
   const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET);
   res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
+});
+
+// 2b. Profile: Save Draft (Progressive Persistence)
+app.post('/api/profile/draft', authenticate, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const updateData = req.body;
+    
+    // Remove fields that shouldn't be updated via draft
+    delete updateData.id;
+    delete updateData.email;
+    delete updateData.password;
+    delete updateData.role;
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...updateData,
+        profileStatus: 'incomplete' // Keep as incomplete until final submission
+      }
+    });
+
+    res.json({ message: 'Draft saved successfully', user: { id: user.id, name: user.name } });
+  } catch (err) {
+    console.error("Draft Save Error:", err);
+    res.status(500).json({ error: 'Failed to save draft' });
+  }
 });
 
 // 3. User info
 app.get('/api/users/me', authenticate, async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user.userId },
-    include: { 
-      verificationResults: true, 
-      documents: { include: { extractedData: true } }
+    include: {
+      verificationResults: true,
+      documents: { 
+        include: { extractedData: true },
+        orderBy: { createdAt: 'desc' }
+      },
+      verificationLogs: {
+        orderBy: { timestamp: 'desc' }
+      }
     }
   });
-  delete user.password;
+  if (user) delete user.password;
   res.json(user);
 });
 
@@ -140,7 +227,7 @@ function calculateSimilarity(str1, str2) {
   const b = str2.toLowerCase();
   if (a === b) return 100;
   if (a.includes(b) || b.includes(a)) return 100;
-  
+
   const matrix = [];
   for (let i = 0; i <= b.length; i++) matrix[i] = [i];
   for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
@@ -161,38 +248,18 @@ function calculateSimilarity(str1, str2) {
 // 5. Upload & Verification Pipeline
 app.post('/api/verify', authenticate, upload.single('document'), async (req, res) => {
   try {
-    const { type, firstName, lastName } = req.body; // 'ID_CARD' | 'MEDICAL_LICENSE' | 'DIPLOMA'
+    const { type } = req.body; 
     const userId = req.user.userId;
 
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    if (!firstName || !lastName) return res.status(400).json({ error: 'First name and last name are required' });
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-
-    // OVERWRITE EXISTING DOCUMENTS
-    const existingDocs = await prisma.document.findMany({ where: { userId, type: type || 'MEDICAL_LICENSE' } });
-    for (const doc of existingDocs) {
-      await prisma.extractedData.deleteMany({ where: { documentId: doc.id } });
-      await prisma.document.delete({ where: { id: doc.id } });
-    }
-
-    // Save document
-    const document = await prisma.document.create({
-      data: {
-        userId,
-        type: type || 'MEDICAL_LICENSE',
-        fileUrl: req.file.filename
-      }
-    });
-
-    // REAL OCR EXTRACTION WITH SHARP PRE-PROCESSING
+    // 1. OCR Extraction with sharp pre-processing
     let extractedText = "";
     try {
-      // PRE-PROCESS IMAGE FOR BETTER OCR
       const processedImageBuffer = await sharp(req.file.path)
         .grayscale()
-        .resize(2000) // Upscale for better detail
-        .normalize() // Boost contrast
+        .resize(2000)
+        .normalize()
         .sharpen()
         .toBuffer();
 
@@ -203,133 +270,148 @@ app.post('/api/verify', authenticate, upload.single('document'), async (req, res
       return res.status(500).json({ error: 'OCR processing failed' });
     }
 
-    // EXTRACT SPECIFIC DATA VIA REGEX
-    const dates = extractedText.match(/\b(\d{2}[/-]\d{2}[/-]\d{4}|\d{4}[/-]\d{2}[/-]\d{2})\b/g) || [];
-    const issueDate = dates[0] || "";
-    const expiryDate = dates[1] || "";
-    const licMatch = extractedText.match(/(?:LIC|LICENSE|ID)[-\s:]*([A-Z0-9]+)/i);
-    const licenseNumber = licMatch ? licMatch[1] : "";
-    const specialtyMatch = extractedText.match(/(?:SPECIALTY|PRACTICE|DEPARTMENT)[-\s:]*([a-zA-Z\s]+)/i);
-    const specialty = specialtyMatch ? specialtyMatch[1].trim() : "";
-
-    const words = extractedText.split(/\s+/);
-    let bestFirstNameMatch = 0;
-    let bestLastNameMatch = 0;
-
-    for (const word of words) {
-      const fnSim = calculateSimilarity(word, firstName);
-      if (fnSim > bestFirstNameMatch) bestFirstNameMatch = fnSim;
-      
-      const lnSim = calculateSimilarity(word, lastName);
-      if (lnSim > bestLastNameMatch) bestLastNameMatch = lnSim;
+    // 2. Progressive Persistence: Save Document
+    // Overwrite if same type exists for this user
+    const existing = await prisma.document.findFirst({ where: { userId, type } });
+    if (existing) {
+        await prisma.extractedData.deleteMany({ where: { documentId: existing.id } });
+        await prisma.document.delete({ where: { id: existing.id } });
     }
 
-    const matchScore = Math.round((bestFirstNameMatch + bestLastNameMatch) / 2);
-    const nameMatches = matchScore >= 75; // Threshold for typo tolerance
-
-    // VERIFICATION MOCK API (INTERNAL)
-    const isInvalidLicense = licenseNumber.endsWith('00');
-    const licenseValid = licenseNumber !== "" && !isInvalidLicense;
-
-    // ADVANCED FRAUD / ANOMALY DETECTION
-    const anomalies = [];
-    const anomalyTests = { nameMismatch: false, expired: false, duplicate: false, missingData: false };
-    
-    if (!nameMatches) { anomalies.push('NAME_MISMATCH'); anomalyTests.nameMismatch = true; }
-    
-    if (!licenseNumber || !issueDate || !expiryDate) {
-      anomalies.push('MISSING_DATA');
-      anomalyTests.missingData = true;
-    }
-
-    let isExpired = false;
-    if (expiryDate) {
-      const parsedExpiry = new Date(expiryDate);
-      if (!isNaN(parsedExpiry) && parsedExpiry < new Date()) {
-         isExpired = true;
-      }
-    }
-    if (isExpired) { anomalies.push('EXPIRED_LICENSE'); anomalyTests.expired = true; }
-
-    if (licenseNumber) {
-      // Find extracted data with same license but different document/user
-      const duplicate = await prisma.extractedData.findFirst({
-         where: { jsonData: { contains: `"license_number":"${licenseNumber}"` } }
-      });
-      if (duplicate && duplicate.documentId !== document.id) {
-         anomalies.push('DUPLICATE_LICENSE');
-         anomalyTests.duplicate = true;
-      }
-    }
-
-    // TRUST SCORE ENGINE
-    let score = 0;
-    const scoreBreakdown = { validLicense: 0, matchingNames: 0, validDates: 0, noAnomalies: 0, deductions: 0 };
-    
-    if (licenseValid) { score += 40; scoreBreakdown.validLicense = 40; }
-    if (nameMatches) { score += 20; scoreBreakdown.matchingNames = 20; }
-    if (expiryDate && !isExpired) { score += 20; scoreBreakdown.validDates = 20; }
-    if (anomalies.length === 0) { score += 20; scoreBreakdown.noAnomalies = 20; }
-    
-    // Deductions
-    if (anomalyTests.nameMismatch) { score -= 20; scoreBreakdown.deductions -= 20; }
-    if (anomalyTests.expired) { score -= 30; scoreBreakdown.deductions -= 30; }
-    if (anomalyTests.missingData) { score -= 10; scoreBreakdown.deductions -= 10; }
-    if (anomalyTests.duplicate) { score -= 50; scoreBreakdown.deductions -= 50; }
-    
-    if (score < 0) score = 0;
-
-    // DECISION ENGINE
-    let status = 'PENDING';
-    if (score >= 80) status = 'APPROVED';
-    else if (score >= 50) status = 'PENDING';
-    else status = 'REJECTED';
-
-    const mockOcrData = {
-      extractedText: extractedText.substring(0, 500), // snippet
-      name: `${firstName} ${lastName}`,
-      license_number: licenseNumber,
-      specialty: specialty,
-      issue_date: issueDate,
-      expiry_date: expiryDate,
-      matchScore,
-      anomalyTests,
-      scoreBreakdown
-    };
-
-    await prisma.extractedData.create({
+    const document = await prisma.document.create({
       data: {
-        documentId: document.id,
-        jsonData: JSON.stringify(mockOcrData)
+        userId,
+        type,
+        fileUrl: req.file.filename,
+        extractedData: {
+          create: { jsonData: JSON.stringify({ extractedText }) }
+        }
       }
     });
 
-    // Update or Create VerificationResult
-    const result = await prisma.verificationResult.upsert({
+    // 3. CROSS-VALIDATION ENGINE
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { documents: { include: { extractedData: true } } }
+    });
+
+    const checks = {
+      identityVerified: false,
+      degreeValid: false,
+      registrationValid: false,
+      dspValid: false,
+      specialistValidated: false,
+      anomalies: []
+    };
+
+    const docs = user.documents;
+    const findDoc = (t) => docs.find(d => d.type === t);
+
+    // Identity Verification (KYC)
+    const idDoc = findDoc('ID_CARD');
+    const selfieDoc = findDoc('SELFIE');
+    if (idDoc) {
+      const idText = JSON.parse(idDoc.extractedData.jsonData).extractedText;
+      const nameMatch = calculateSimilarity(idText, user.name) > 75;
+      const idMatch = user.nationalId ? idText.includes(user.nationalId) : true;
+      
+      if (nameMatch && idMatch) {
+        if (selfieDoc) {
+          checks.identityVerified = true;
+          await createVerificationLog(userId, 'IDENTITY', 'PASS', { detail: 'Name and ID match. Selfie present.' });
+        } else {
+          await createVerificationLog(userId, 'IDENTITY', 'WARNING', { detail: 'ID matches but selfie missing.' });
+        }
+      } else {
+         checks.anomalies.push('ID_NAME_MISMATCH');
+         await createVerificationLog(userId, 'IDENTITY', 'FAIL', { detail: 'Name on ID does not match profile.' });
+      }
+    }
+
+    // Medical Degree
+    const degreeDoc = findDoc('DEGREE');
+    if (degreeDoc) {
+      const degreeText = JSON.parse(degreeDoc.extractedData.jsonData).extractedText;
+      const nameMatch = calculateSimilarity(degreeText, user.name) > 75;
+      if (nameMatch) {
+        checks.degreeValid = true;
+        await createVerificationLog(userId, 'DEGREE', 'PASS');
+      } else {
+        checks.anomalies.push('DEGREE_NAME_MISMATCH');
+        await createVerificationLog(userId, 'DEGREE', 'FAIL');
+      }
+    }
+
+    // Medical Council Registration
+    const regDoc = findDoc('REGISTRATION');
+    if (regDoc) {
+      checks.registrationValid = true;
+      await createVerificationLog(userId, 'REGISTRATION', 'PASS');
+    }
+
+    // DSP License
+    const dspDoc = findDoc('DSP');
+    if (dspDoc) {
+      checks.dspValid = true;
+      await createVerificationLog(userId, 'DSP', 'PASS');
+    }
+
+    // Specialist Flow (Conditional)
+    if (user.degreeType === 'Specialist') {
+      const residency = findDoc('RESIDENCY_CERT');
+      if (residency) checks.specialistValidated = true;
+    } else {
+      checks.specialistValidated = true; 
+    }
+
+    // Timeline Validation (Mock)
+    if (user.graduationYear && regDoc) {
+        await createVerificationLog(userId, 'TIMELINE', 'PASS');
+    }
+
+    // Duplicate Detection
+    const duplicateId = await prisma.user.findFirst({
+        where: { nationalId: user.nationalId, NOT: { id: userId } }
+    });
+    if (duplicateId && user.nationalId) {
+      checks.anomalies.push('DUPLICATE_NATIONAL_ID');
+    }
+
+    // 4. TRUST SCORE ENGINE
+    const score = calculateTrustScore(checks);
+    const status = determineStatus(score);
+
+    // 5. DECISION ENGINE & PROFILE UPDATE
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        trustScore: score,
+        verificationStatus: status,
+        profileStatus: (checks.identityVerified && checks.degreeValid && checks.registrationValid && checks.dspValid) ? 'pending' : 'incomplete'
+      }
+    });
+
+    // Update VerificationResult for compatibility with old admin dashboard
+    await prisma.verificationResult.upsert({
       where: { userId },
       update: {
-        licenseValid,
-        anomalies: JSON.stringify(anomalies),
+        licenseValid: checks.registrationValid,
+        anomalies: JSON.stringify(checks.anomalies),
         score,
-        status
+        status: status.toUpperCase()
       },
       create: {
         userId,
-        licenseValid,
-        anomalies: JSON.stringify(anomalies),
+        licenseValid: checks.registrationValid,
+        anomalies: JSON.stringify(checks.anomalies),
         score,
-        status
+        status: status.toUpperCase()
       }
     });
 
-    await createAuditLog(userId, 'UPLOAD', { 
-      docId: document.id, 
-      score, 
-      status, 
-      anomalies 
-    });
+    await createAuditLog(userId, 'DOC_UPLOAD', { type, score, status });
 
-    res.json({ message: 'Pipeline completed', document, result, ocrData: mockOcrData });
+    res.json({ message: 'Document processed', score, status, checks, currentDoc: document.id });
 
   } catch (error) {
     console.error(error);
@@ -342,26 +424,33 @@ app.get('/api/admin/practitioners', authenticate, requireAdmin, async (req, res)
   const practitioners = await prisma.user.findMany({
     where: { role: 'DOCTOR' },
     include: {
-      verificationResults: true,
       documents: {
         include: { extractedData: true }
-      }
+      },
+      verificationLogs: true
     }
   });
-  
+
   const formatted = practitioners.map(p => ({
     id: p.id,
     name: p.name,
     email: p.email,
-    status: p.verificationResults?.status || 'NOT_SUBMITTED',
-    score: p.verificationResults?.score || 0,
-    anomalies: p.verificationResults ? JSON.parse(p.verificationResults.anomalies) : [],
+    phone: p.phone,
+    nationalId: p.nationalId,
+    profileStatus: p.profileStatus,
+    verificationStatus: p.verificationStatus,
+    trustScore: p.trustScore,
+    degreeType: p.degreeType,
+    practiceType: p.practiceType,
+    wilaya: p.wilaya,
     documents: p.documents.map(d => ({
       id: d.id,
       type: d.type,
       fileUrl: d.fileUrl,
+      status: d.verificationStatus,
       extractedData: d.extractedData ? JSON.parse(d.extractedData.jsonData) : null
-    }))
+    })),
+    logs: p.verificationLogs
   }));
 
   res.json(formatted);
@@ -378,7 +467,7 @@ app.post('/api/admin/practitioners/:id/review', authenticate, requireAdmin, asyn
 
   const result = await prisma.verificationResult.update({
     where: { userId: parseInt(id) },
-    data: { 
+    data: {
       status,
       annotations: annotations ? JSON.stringify(annotations) : undefined
     }
@@ -402,15 +491,15 @@ app.get('/api/admin/audit', authenticate, requireAdmin, async (req, res) => {
 // 9. Admin Dashboard: Blockchain Anchor (Mock)
 app.post('/api/admin/anchor/:logId', authenticate, requireAdmin, async (req, res) => {
   const { logId } = req.params;
-  
+
   // Mock blockchain anchoring
   const txHash = '0x' + Math.random().toString(16).slice(2) + Math.random().toString(16).slice(2);
-  
+
   const log = await prisma.auditLog.update({
     where: { id: parseInt(logId) },
     data: { txHash }
   });
-  
+
   res.json({ message: 'Anchored to blockchain', txHash, log });
 });
 

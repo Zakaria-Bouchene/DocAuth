@@ -85,7 +85,7 @@ export default function AdminDashboard() {
     router.push("/");
   };
 
-  const filtered = practitioners.filter(p => filter === "ALL" ? true : p.status === filter);
+  const filtered = practitioners.filter(p => filter === "ALL" ? true : p.verificationStatus.toUpperCase() === filter);
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -171,32 +171,32 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-2">
                           <div className="w-16 bg-slate-100 h-2 rounded-full overflow-hidden">
                             <div 
-                              className={`h-full transition-all duration-1000 ${p.score >= 80 ? 'bg-green-500' : p.score >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                              style={{ width: `${p.score}%` }}
+                              className={`h-full transition-all duration-1000 ${p.trustScore >= 90 ? 'bg-green-500' : p.trustScore >= 70 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                              style={{ width: `${p.trustScore}%` }}
                             ></div>
                           </div>
-                          <span className={`text-sm font-bold ${p.score >= 80 ? 'text-green-600' : p.score >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
-                            {p.score}%
+                          <span className={`text-sm font-bold ${p.trustScore >= 90 ? 'text-green-600' : p.trustScore >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>
+                            {p.trustScore}%
                           </span>
                         </div>
                       </td>
                       <td className="p-5">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold tracking-widest ${
-                          p.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                          p.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                          p.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase ${
+                          p.verificationStatus === 'verified' ? 'bg-green-100 text-green-700' :
+                          p.verificationStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                          p.verificationStatus === 'rejected' ? 'bg-red-100 text-red-700' :
                           'bg-slate-100 text-slate-700'
                         }`}>
-                          {p.status}
+                          {p.verificationStatus}
                         </span>
                       </td>
                       <td className="p-5">
                         <div className="flex flex-wrap gap-1">
-                          {p.anomalies.length > 0 ? p.anomalies.map((a: string, i: number) => (
-                            <span key={i} className="px-2 py-0.5 bg-red-50 text-red-600 border border-red-100 rounded text-[9px] font-bold">
-                              {a}
+                          {p.profileStatus === 'incomplete' ? (
+                            <span className="px-2 py-0.5 bg-yellow-50 text-yellow-600 border border-yellow-100 rounded text-[9px] font-bold">
+                              INCOMPLETE PROFILE
                             </span>
-                          )) : <span className="text-slate-300 text-xs">—</span>}
+                          ) : <span className="text-slate-300 text-xs">—</span>}
                         </div>
                       </td>
                       <td className="p-5 text-right">
@@ -312,22 +312,27 @@ export default function AdminDashboard() {
 
             <div className="flex-1 flex overflow-hidden">
               {/* Left: Document Image Viewer */}
-              <div className="flex-1 bg-slate-200 p-8 overflow-auto flex items-center justify-center border-r border-slate-100">
+              <div className="flex-1 bg-slate-200 p-8 overflow-auto flex flex-col items-center gap-8 border-r border-slate-100">
                 {selectedPractitioner.documents.length > 0 ? (
-                  <div className="relative group">
-                    <img 
-                      src={`http://localhost:3001/uploads/${selectedPractitioner.documents[0].fileUrl}`} 
-                      alt="License Document"
-                      className="max-w-full h-auto rounded-xl shadow-2xl border-8 border-white transition-transform group-hover:scale-[1.01]"
-                    />
-                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg shadow-lg text-[10px] font-bold text-slate-800 flex items-center gap-2">
-                      <Activity size={12} className="text-blue-600" /> ORIGINAL DOCUMENT
+                  selectedPractitioner.documents.map((doc: any) => (
+                    <div key={doc.id} className="relative group w-full max-w-2xl">
+                      <div className="mb-2 flex justify-between items-center">
+                        <span className="text-xs font-black text-slate-600 uppercase">{doc.type}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${doc.status === 'verified' ? 'bg-green-500 text-white' : 'bg-yellow-500 text-white'}`}>
+                            {doc.status}
+                        </span>
+                      </div>
+                      <img 
+                        src={`http://localhost:3001/uploads/${doc.fileUrl}`} 
+                        alt={doc.type}
+                        className="w-full h-auto rounded-xl shadow-xl border-4 border-white transition-transform group-hover:scale-[1.01]"
+                      />
                     </div>
-                  </div>
+                  ))
                 ) : (
-                  <div className="text-slate-400 flex flex-col items-center gap-2">
+                  <div className="text-slate-400 flex flex-col items-center gap-2 mt-20">
                     <FileText size={48} className="opacity-20" />
-                    <p className="font-medium">No document image available</p>
+                    <p className="font-medium">No document images uploaded</p>
                   </div>
                 )}
               </div>
