@@ -13,8 +13,15 @@ model User {
   email               String                @unique
   password            String
   role                String                // 'DOCTOR' | 'ADMIN'
+  phone               String?
+  specialty           String?               // Self-declared specialty (e.g., 'Cardiology')
+  licenseNumber       String?               // Self-declared license number for cross-referencing
+  institution         String?               // Hospital or clinic name
+  graduationYear      String?               // Year of graduation
+  country             String?               // Country of practice
   documents           Document[]
   verificationResults VerificationResult?
+  auditLogs           AuditLog[]
 }
 
 model Document {
@@ -40,5 +47,16 @@ model VerificationResult {
   anomalies      String    // Array of risk flags as JSON string
   score          Int
   status         String    // 'APPROVED' | 'PENDING' | 'REJECTED'
+  annotations    String?   // JSON string for visual annotations (rectangles, notes)
   user           User      @relation(fields: [userId], references: [id])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  timestamp DateTime @default(now())
+  userId    Int?
+  action    String   // e.g. 'UPLOAD', 'ADMIN_APPROVE', 'LOGIN', 'BLOCKCHAIN_ANCHOR'
+  details   String?  // JSON string for additional details
+  txHash    String?  // Optional blockchain transaction hash
+  user      User?    @relation(fields: [userId], references: [id])
 }

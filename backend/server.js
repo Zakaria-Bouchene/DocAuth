@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
 const Tesseract = require('tesseract.js');
+const sharp = require('sharp');
 
 const prisma = new PrismaClient();
 const app = express();
@@ -45,22 +46,52 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+// --- UTILS ---
+async function createAuditLog(userId, action, details = null, txHash = null) {
+  try {
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        action,
+        details: details ? JSON.stringify(details) : null,
+        txHash
+      }
+    });
+  } catch (err) {
+    console.error("Audit Log Error:", err);
+  }
+}
+
 // --- ROUTES ---
 
 // 1. Auth: Register
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, phone, specialty, licenseNumber, institution, graduationYear, country } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
     const userRole = role === 'ADMIN' ? 'ADMIN' : 'DOCTOR';
     
     const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword, role: userRole }
+      data: { 
+        name, 
+        email, 
+        password: hashedPassword, 
+        role: userRole,
+        phone,
+        specialty,
+        licenseNumber,
+        institution,
+        graduationYear,
+        country
+      }
     });
+    
+    await createAuditLog(user.id, 'REGISTER', { email: user.email, role: user.role });
     
     const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET);
     res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
   } catch (err) {
+    console.error("Registration Error:", err);
     res.status(400).json({ error: 'Email already exists or invalid data.' });
   }
 });
@@ -72,6 +103,9 @@ app.post('/api/auth/login', async (req, res) => {
   if (!user || !(await bcrypt.compare(password, user.password))) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
+  
+  await createAuditLog(user.id, 'LOGIN', { ip: req.ip });
+  
   const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET);
   res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
 });
@@ -151,10 +185,18 @@ app.post('/api/verify', authenticate, upload.single('document'), async (req, res
       }
     });
 
-    // REAL OCR EXTRACTION
+    // REAL OCR EXTRACTION WITH SHARP PRE-PROCESSING
     let extractedText = "";
     try {
-      const { data } = await Tesseract.recognize(req.file.path, 'eng');
+      // PRE-PROCESS IMAGE FOR BETTER OCR
+      const processedImageBuffer = await sharp(req.file.path)
+        .grayscale()
+        .resize(2000) // Upscale for better detail
+        .normalize() // Boost contrast
+        .sharpen()
+        .toBuffer();
+
+      const { data } = await Tesseract.recognize(processedImageBuffer, 'eng');
       extractedText = data.text;
     } catch (err) {
       console.error("OCR Error:", err);
@@ -280,6 +322,13 @@ app.post('/api/verify', authenticate, upload.single('document'), async (req, res
       }
     });
 
+    await createAuditLog(userId, 'UPLOAD', { 
+      docId: document.id, 
+      score, 
+      status, 
+      anomalies 
+    });
+
     res.json({ message: 'Pipeline completed', document, result, ocrData: mockOcrData });
 
   } catch (error) {
@@ -321,7 +370,7 @@ app.get('/api/admin/practitioners', authenticate, requireAdmin, async (req, res)
 // 7. Admin Dashboard: Review (Approve/Reject)
 app.post('/api/admin/practitioners/:id/review', authenticate, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body; // 'APPROVED' or 'REJECTED'
+  const { status, annotations } = req.body; // 'APPROVED' or 'REJECTED'
 
   if (!['APPROVED', 'REJECTED'].includes(status)) {
     return res.status(400).json({ error: 'Invalid status' });
@@ -329,10 +378,40 @@ app.post('/api/admin/practitioners/:id/review', authenticate, requireAdmin, asyn
 
   const result = await prisma.verificationResult.update({
     where: { userId: parseInt(id) },
-    data: { status }
+    data: { 
+      status,
+      annotations: annotations ? JSON.stringify(annotations) : undefined
+    }
   });
 
+  await createAuditLog(req.user.userId, `ADMIN_${status}`, { practitionerId: id, annotations });
+
   res.json(result);
+});
+
+// 8. Admin Dashboard: Get Audit Logs
+app.get('/api/admin/audit', authenticate, requireAdmin, async (req, res) => {
+  const logs = await prisma.auditLog.findMany({
+    orderBy: { timestamp: 'desc' },
+    include: { user: { select: { name: true, email: true } } },
+    take: 100
+  });
+  res.json(logs);
+});
+
+// 9. Admin Dashboard: Blockchain Anchor (Mock)
+app.post('/api/admin/anchor/:logId', authenticate, requireAdmin, async (req, res) => {
+  const { logId } = req.params;
+  
+  // Mock blockchain anchoring
+  const txHash = '0x' + Math.random().toString(16).slice(2) + Math.random().toString(16).slice(2);
+  
+  const log = await prisma.auditLog.update({
+    where: { id: parseInt(logId) },
+    data: { txHash }
+  });
+  
+  res.json({ message: 'Anchored to blockchain', txHash, log });
 });
 
 // Serve uploaded files statically
