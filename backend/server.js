@@ -115,7 +115,8 @@ app.post('/api/auth/register', async (req, res) => {
     } = req.body;
     
     const hashedPassword = await bcrypt.hash(password, 10);
-    const userRole = role === 'ADMIN' ? 'ADMIN' : 'DOCTOR';
+    const allowedRoles = ['DOCTOR', 'PHARMACIST', 'ADMIN'];
+    const userRole = allowedRoles.includes(role) ? role : 'DOCTOR';
 
     const user = await prisma.user.create({
       data: {

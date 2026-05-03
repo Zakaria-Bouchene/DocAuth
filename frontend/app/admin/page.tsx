@@ -317,16 +317,30 @@ export default function AdminDashboard() {
                   selectedPractitioner.documents.map((doc: any) => (
                     <div key={doc.id} className="relative group w-full max-w-2xl">
                       <div className="mb-2 flex justify-between items-center">
-                        <span className="text-xs font-black text-slate-600 uppercase">{doc.type}</span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${doc.status === 'verified' ? 'bg-green-500 text-white' : 'bg-yellow-500 text-white'}`}>
-                            {doc.status}
+                        <span className="text-xs font-black text-slate-600 uppercase flex items-center gap-2">
+                          <Fingerprint size={12} className="text-blue-500" /> {doc.type}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded shadow-sm ${doc.status === 'verified' ? 'bg-green-500 text-white' : 'bg-yellow-500 text-white'}`}>
+                            {doc.status.toUpperCase()}
                         </span>
                       </div>
-                      <img 
-                        src={`http://localhost:3001/uploads/${doc.fileUrl}`} 
-                        alt={doc.type}
-                        className="w-full h-auto rounded-xl shadow-xl border-4 border-white transition-transform group-hover:scale-[1.01]"
-                      />
+                      <div className="relative rounded-xl shadow-2xl border-4 border-white overflow-hidden bg-slate-900">
+                        {/* Scanning Animation */}
+                        <div className="absolute top-0 left-0 w-full h-1 bg-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-scan z-10" />
+                        <div className="absolute inset-0 bg-blue-500/5 pointer-events-none z-0" />
+                        
+                        <img 
+                          src={`http://localhost:3001/uploads/${doc.fileUrl}`} 
+                          alt={doc.type}
+                          className="w-full h-auto transition-transform group-hover:scale-[1.02] relative z-0 opacity-90"
+                        />
+                        
+                        {/* High-tech corner accents */}
+                        <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-blue-500 z-20" />
+                        <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-blue-500 z-20" />
+                        <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-blue-500 z-20" />
+                        <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-blue-500 z-20" />
+                      </div>
                     </div>
                   ))
                 ) : (
@@ -421,6 +435,15 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+      <style jsx global>{`
+        @keyframes scan {
+          0% { top: 0; }
+          100% { top: 100%; }
+        }
+        .animate-scan {
+          animation: scan 4s linear infinite;
+        }
+      `}</style>
     </main>
   );
 }

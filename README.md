@@ -1,56 +1,102 @@
-# DocAuth - Trusted Practitioner Onboarding MVP
+# DocAuth - Forensic Healthcare Practitioner Verification
 
-DocAuth is an MVP web application for onboarding and verifying digital healthcare practitioners. It implements a complete trust verification pipeline including document upload, OCR extraction (mocked), license verification (mocked), anomaly detection, trust scoring, and an admin decision engine.
+DocAuth is an advanced AI-powered platform designed to verify healthcare practitioners in Algeria using strict forensic document analysis. It automates the verification of diplomas, IDs, and licenses while detecting potential fraud through image signals and generative AI.
 
-## Tech Stack
-- **Frontend**: Next.js (App Router), Tailwind CSS, Lucide React
-- **Backend**: Node.js, Express, Prisma ORM, SQLite
-- **Auth**: JWT Authentication
+## 🏗️ System Architecture
 
-## Setup Instructions
+```mermaid
+graph TD
+    subgraph "Client Layer (Next.js)"
+        PD[Practitioner Dashboard]
+        AD[Admin Dashboard]
+    end
 
-### 1. Backend Setup
+    subgraph "API Layer (Express.js)"
+        Auth[JWT Authentication]
+        Upload[Multer File Upload]
+        Engine[Verification Engine]
+        Forensic[AI Forensic Analyst]
+    end
 
-Open a terminal and navigate to the backend directory:
+    subgraph "Processing Services"
+        Sharp[Sharp Image Processing]
+        OCR[Tesseract.js OCR]
+        Gemini[Google Gemini 1.5 Flash]
+    end
 
+    subgraph "Data & Storage"
+        DB[(SQLite / Prisma)]
+        FS[Local Filesystem /uploads]
+        Audit[Immutable Audit Logs]
+        BC[Blockchain Hash Anchoring]
+    end
+
+    %% Flow
+    PD -->|Upload Docs| Upload
+    Upload -->|Save| FS
+    Engine -->|Pre-process| Sharp
+    Engine -->|Extract Text| OCR
+    Engine -->|Analyze Fraud| Forensic
+    Forensic -->|Prompt Analysis| Gemini
+    Engine -->|Store Results| DB
+    AD -->|Review/Approve| DB
+    DB --> Audit
+    Audit -->|Anchor| BC
+```
+
+## 🚀 Key Features
+
+- **AI Forensic Analysis**: Uses Google Gemini 1.5 Flash in "Strict Mode" to detect manipulation, inconsistent layouts, and missing official Algerian administrative keywords.
+- **Image Quality Signals**:
+    - **Blur Detection**: Standard deviation analysis of pixel intensity to identify low-quality or intentionally blurred documents.
+    - **ELA Simulation**: Evaluates Error Level Analysis to detect potential digital tampering.
+    - **Layout Consistency**: Verifies document structure against Algerian administrative standards.
+- **Automated Trust Scoring**: Weighted scoring engine (0-100) based on identity matching, license validity, and forensic results.
+- **Security & Audit**:
+    - JWT-based Role-Based Access Control (RBAC).
+    - Immutable Audit Logs for all administrative actions.
+    - Blockchain Hash Anchoring (Mock) for data integrity.
+
+## 🛠️ Tech Stack
+
+- **Frontend**: Next.js 14 (App Router), Tailwind CSS, Lucide Icons, Axios.
+- **Backend**: Node.js, Express, Multer.
+- **AI/ML**: Tesseract.js (OCR), Sharp (Image Stats), Google Generative AI (Gemini SDK).
+- **Database**: Prisma ORM with SQLite.
+- **Dev Tools**: Nodemon, TypeScript (Frontend).
+
+## 📥 Setup Instructions
+
+### 1. Environment Configuration
+Create a `.env` file in the root directory:
+```env
+DATABASE_URL="file:./dev.db"
+GEMINI_API_KEY="your_google_gemini_api_key"
+JWT_SECRET="your_secret_key"
+```
+
+### 2. Backend Setup
 ```bash
 cd backend
 npm install
-npx prisma generate
 npx prisma db push
 npm start
 ```
-The backend will run on `http://localhost:3001`.
 
-### 2. Frontend Setup
-
-Open another terminal and navigate to the frontend directory:
-
+### 3. Frontend Setup
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-The frontend will run on `http://localhost:3000`.
 
-## Testing the MVP
+## 🛡️ Forensic Analysis Logic (Strict Mode)
 
-1. Open `http://localhost:3000` in your browser.
-2. Click **Register Account** to create a Practitioner account.
-3. Log in and access the **Practitioner Dashboard**.
-4. Upload a document (image or PDF). 
-   - **MOCK OCR TRIGGERS**: 
-     - Name the file with `mismatch` (e.g., `license_mismatch.pdf`) to simulate a name mismatch anomaly.
-     - Name the file with `expired` to simulate an expired license anomaly.
-     - Name the file with `invalid` to simulate an invalid license number.
-     - Normal file names will simulate a valid, clean extraction with a score of >= 80 (Auto-Approved).
-5. Watch the system automatically score and decide the status of your application.
-6. Register another account, but select the **Administrator** role.
-7. Log in as the Administrator to see the **Verification Queue**.
-8. From here, you can view the calculated Trust Scores, see any Anomalies (Flags), and Manually Approve or Reject pending practitioners.
+The system is configured to be "stricter than a human auditor." Documents are flagged as **HIGH RISK** if:
+- Official keywords (e.g., *République Algérienne*, *Ministère*) are missing.
+- The image lacks natural "scan noise" (looks too clean/digital).
+- Text quality is insufficient for reliable OCR.
+- Stamps or signatures are missing or ambiguous.
 
-## Database Schema Overview
-- **User**: Stores practitioner and admin accounts.
-- **Document**: Stores uploaded document metadata and file paths.
-- **ExtractedData**: Stores JSON output from the (mock) OCR engine.
-- **VerificationResult**: Stores the final status, Trust Score, and any detected anomalies (fraud flags).
+---
+*Developed for Algerian Healthcare Digital Sovereignty.*

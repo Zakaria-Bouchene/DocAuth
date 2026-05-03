@@ -22,7 +22,7 @@ export default function Register() {
   const [degreeType, setDegreeType] = useState("General");
   const [practiceType, setPracticeType] = useState("Public");
   const [wilaya, setWilaya] = useState("");
-  
+
   const [error, setError] = useState("");
   const router = useRouter();
 
@@ -30,14 +30,14 @@ export default function Register() {
     e.preventDefault();
     setError("");
     try {
-      const res = await axios.post("http://localhost:3001/api/auth/register", { 
-        name, email, password, role, 
+      const res = await axios.post("http://localhost:3001/api/auth/register", {
+        name, email, password, role,
         phone, specialty, licenseNumber, institution, graduationYear, country,
         dateOfBirth, nationalId, degreeType, practiceType, wilaya
       });
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
-      
+
       if (res.data.user.role === "ADMIN") {
         router.push("/admin");
       } else {
@@ -55,7 +55,7 @@ export default function Register() {
           <ShieldCheck className="text-blue-600" size={40} />
         </div>
         <h2 className="text-2xl font-bold text-center text-slate-900 mb-8">Create your Practitioner Account</h2>
-        
+
         {error && <div className="p-3 mb-4 text-sm text-red-600 bg-red-50 rounded-lg">{error}</div>}
 
         <form onSubmit={handleRegister} className="space-y-6">
@@ -67,7 +67,7 @@ export default function Register() {
                 <input
                   type="text"
                   required
-                  placeholder="Dr. John Doe"
+                  placeholder="Dr. Mohammed"
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -78,7 +78,7 @@ export default function Register() {
                 <input
                   type="email"
                   required
-                  placeholder="john@hospital.com"
+                  placeholder="Mohammed@hospital.com"
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -123,7 +123,7 @@ export default function Register() {
                   onChange={(e) => setRole(e.target.value)}
                 >
                   <option value="DOCTOR">Practitioner</option>
-                  <option value="ADMIN">Administrator</option>
+                  <option value="PHARMACIST">Pharmacist</option>
                 </select>
               </div>
             </div>
