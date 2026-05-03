@@ -64,6 +64,7 @@ model VerificationResult {
   score          Int
   status         String    // 'APPROVED' | 'PENDING' | 'REJECTED'
   annotations    String?   // JSON string for visual annotations (rectangles, notes)
+  forensicData   String?   // JSON string for AI forensic analysis results
   user           User      @relation(fields: [userId], references: [id])
 }
 
