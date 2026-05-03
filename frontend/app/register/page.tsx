@@ -68,7 +68,7 @@ export default function Register() {
                   type="text"
                   required
                   placeholder="Dr. Mohammed"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
@@ -79,7 +79,7 @@ export default function Register() {
                   type="email"
                   required
                   placeholder="Mohammed@hospital.com"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -89,7 +89,7 @@ export default function Register() {
                 <input
                   type="password"
                   required
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -99,7 +99,7 @@ export default function Register() {
                 <input
                   type="date"
                   required
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={dateOfBirth}
                   onChange={(e) => setDateOfBirth(e.target.value)}
                 />
@@ -110,7 +110,7 @@ export default function Register() {
                   type="text"
                   required
                   placeholder="123456789"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={nationalId}
                   onChange={(e) => setNationalId(e.target.value)}
                 />
@@ -118,7 +118,7 @@ export default function Register() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
                 <select
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                 >
@@ -135,7 +135,7 @@ export default function Register() {
                 <input
                   type="text"
                   placeholder="e.g. Cardiology"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={specialty}
                   onChange={(e) => setSpecialty(e.target.value)}
                 />
@@ -145,7 +145,7 @@ export default function Register() {
                 <input
                   type="text"
                   placeholder="e.g. LIC-12345"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={licenseNumber}
                   onChange={(e) => setLicenseNumber(e.target.value)}
                 />
@@ -155,7 +155,7 @@ export default function Register() {
                 <input
                   type="tel"
                   placeholder="+1 234 567 890"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
@@ -165,7 +165,7 @@ export default function Register() {
                 <input
                   type="text"
                   placeholder="General Hospital"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={institution}
                   onChange={(e) => setInstitution(e.target.value)}
                 />
@@ -173,7 +173,7 @@ export default function Register() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Degree Type</label>
                 <select
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
                   value={degreeType}
                   onChange={(e) => setDegreeType(e.target.value)}
                 >
@@ -184,7 +184,7 @@ export default function Register() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Practice Type</label>
                 <select
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white transition-all"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
                   value={practiceType}
                   onChange={(e) => setPracticeType(e.target.value)}
                 >
@@ -197,7 +197,7 @@ export default function Register() {
                 <input
                   type="text"
                   placeholder="e.g. Algiers"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={wilaya}
                   onChange={(e) => setWilaya(e.target.value)}
                 />
@@ -206,7 +206,7 @@ export default function Register() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Country of Graduation</label>
                 <input
                   type="text"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
                 />
@@ -214,8 +214,8 @@ export default function Register() {
             </div>
           </div>
 
-          <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5 active:translate-y-0">
-            Register Professional Account
+          <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-colors">
+            Register Account
           </button>
         </form>
         <div className="mt-8 text-center text-sm text-slate-500">

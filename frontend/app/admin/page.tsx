@@ -7,7 +7,7 @@ import {
   LogOut, ShieldAlert, CheckCircle, XCircle,
   Search, Eye, Activity, FileText, ExternalLink,
   Database, Lock, Hash, Clock,
-  Shield
+  Shield, Fingerprint
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -315,7 +315,6 @@ export default function AdminDashboard() {
                   selectedPractitioner.documents.map((doc: any) => (
                     <div key={doc.id} className="relative group w-full max-w-2xl">
                       <div className="mb-2 flex justify-between items-center">
-<<<<<<< HEAD
                         <span className="text-xs font-black text-slate-600 uppercase flex items-center gap-2">
                           <Fingerprint size={12} className="text-blue-500" /> {doc.type}
                         </span>
@@ -340,18 +339,6 @@ export default function AdminDashboard() {
                         <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-blue-500 z-20" />
                         <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-blue-500 z-20" />
                       </div>
-=======
-                        <span className="text-xs font-black text-slate-600 uppercase">{doc.type}</span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${doc.status === 'verified' ? 'bg-green-500 text-white' : 'bg-yellow-500 text-white'}`}>
-                          {doc.status}
-                        </span>
-                      </div>
-                      <img
-                        src={`http://localhost:3001/uploads/${doc.fileUrl}`}
-                        alt={doc.type}
-                        className="w-full h-auto rounded-xl shadow-xl border-4 border-white transition-transform group-hover:scale-[1.01]"
-                      />
->>>>>>> 16431de4a358021f85c2f29a4d698a6a416f9299
                     </div>
                   ))
                 ) : (
